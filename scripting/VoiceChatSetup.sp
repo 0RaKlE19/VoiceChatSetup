@@ -51,7 +51,7 @@ public void OnClientDisconnect(int iClient)    // Игрок отключилс�
     if(g_hTimer[iClient] != INVALID_HANDLE)    // Проверяем что таймер активен и уничтожаем
     {
         KillTimer(g_hTimer[iClient]);    // Уничтожаем таймер
-        g_hTimer[iClient] = null;        // Обнуляем значения дескриптора
+        g_hTimer[iClient] = INVALID_HANDLE;        // Обнуляем значения дескриптора
     }
     g_iTimer[iClient] = g_isv_talk_after_dying_time;
 }
@@ -95,7 +95,7 @@ void KillAllTimers()
         if(g_hTimer[i] != INVALID_HANDLE)    // Проверяем что таймер активен
         {
             KillTimer(g_hTimer[i]);    // Уничтожаем таймер
-            g_hTimer[i] = null;        // Обнуляем значения дескриптора
+            g_hTimer[i] = INVALID_HANDLE;        // Обнуляем значения дескриптора
         }
         g_iTimer[i] = g_isv_talk_after_dying_time;
     }
