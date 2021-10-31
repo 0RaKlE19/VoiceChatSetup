@@ -1,0 +1,21 @@
+"Phrases"
+{
+    "VOICE_TO_ALL"
+    {
+        "en"        "<font size='18'><font color='#00FF00'>The living</font><font color='#FF0000'> hear everyone</font></font>"
+        "ru"        "<font size='18'><font color='#00FF00'>Живые</font><font color='#FF0000'> слышат всех</font></font>"
+    }
+
+    "VOICE_TO_DIE"
+    {
+        "en"        "<font size='18'><font color='#00FF00'>Only the</font><font color='#FF0000'> dead hear you</font></font>"
+        "ru"        "<font size='18'><font color='#00FF00'>Вас слышат</font><font color='#FF0000'> только мёртвые</font></font>"
+    }
+
+    "VOICE_TIMER"
+    {
+        "#format"   "{1:i}"
+        "en"        "<font size='18'><font color='#00FF00'>The living hear you</font><font color='#FF0000'> for another {1} seconds</font></font>"
+        "ru"        "<font size='18'><font color='#00FF00'>Живые слышат вас</font><font color='#FF0000'> еще {1} секунд</font></font>"
+    }
+}
