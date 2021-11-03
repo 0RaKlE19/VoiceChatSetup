@@ -43,31 +43,31 @@ public void OnPluginEnd()
 	iFlags |= ~FCVAR_NOTIFY;
 	SetConVarFlags(sv_deadtalk, iFlags);
     CloseHandle(sv_deadtalk);
-    KillAllTimers();
+    for (int i = 1; i <= MaxClients; i++)
+        delete g_hTimer[i];
 }
 
 public void OnClientDisconnect(int iClient)    // Игрок отключился
 {
+    g_iTimer[iClient] = g_isv_talk_after_dying_time;
+    delete g_hTimer[iClient];
+    /*
     if(g_hTimer[iClient] != INVALID_HANDLE)    // Проверяем что таймер активен и уничтожаем
     {
         KillTimer(g_hTimer[iClient]);    // Уничтожаем таймер
         g_hTimer[iClient] = INVALID_HANDLE;        // Обнуляем значения дескриптора
-    }
-    g_iTimer[iClient] = g_isv_talk_after_dying_time;
+    }*/
 }
 
 void eRound_End(Event event, const char[] name, bool dontBroadcast)
 {
+    //g_iEvent = 1
     SetConVarInt(sv_deadtalk, 1, true, false);
     VoiceToAll();
     KillAllTimers();
 }
 
-void eRound_Start(Event event, const char[] name, bool dontBroadcast)
-{
-    SetConVarInt(sv_deadtalk, 0, true, false);
-    KillAllTimers();
-}
+void eRound_Start(Event event, const char[] name, bool dontBroadcast){SetConVarInt(sv_deadtalk, 0, true, false);}
 
 void ePlayer_Death(Event event, const char[] name, bool dontBroadcast)
 {
@@ -78,6 +78,15 @@ void ePlayer_Death(Event event, const char[] name, bool dontBroadcast)
         {
             if(GetClientTeam(i) == 2) // 2 - T | 3 - CT
             { // T Alive, so we start timer
+            /*
+                if(g_hTimer[iClient] != INVALID_HANDLE)
+                {
+                    KillTimer(g_hTimer[iClient]);    // Уничтожаем таймер
+                    g_hTimer[iClient] = INVALID_HANDLE;        // Обнуляем значения дескриптора
+                }
+                */
+                PrintToChatAll("[DEBUG][VCT]: +1 T");
+                delete g_hTimer[iClient];
                 g_hTimer[iClient] = CreateTimer(1.0, Timer_Delay, GetClientUserId(iClient), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);    // Можем передать сразу индекс т.к. если игрок выйдет мы сразу уничтожим его таймер
                 return;
             }
@@ -92,42 +101,41 @@ void KillAllTimers()
 {
     for(int i = 1; i <= MaxClients; i++)    // Цикл по всем игрокам
     {
+        g_iTimer[i] = g_isv_talk_after_dying_time;
+        delete g_hTimer[i];/*
         if(g_hTimer[i] != INVALID_HANDLE)    // Проверяем что таймер активен
         {
             KillTimer(g_hTimer[i]);    // Уничтожаем таймер
             g_hTimer[i] = INVALID_HANDLE;        // Обнуляем значения дескриптора
-        }
-        g_iTimer[i] = g_isv_talk_after_dying_time;
+        }*/
     }
 }
 
 public Action Timer_Delay(Handle hTimer, any iUserId) // Каллбек нашего таймера
 {
     int iClient = GetClientOfUserId(iUserId);
-    if(iClient && GetClientTeam(iClient) != 1) // Spectators
-    {
-        if(g_iTimer[iClient] > 0)
-        {
-            FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TIMER", g_iTimer[iClient]);
-            PrintCenterText(iClient, sBuffer);
-            g_iTimer[iClient] -= 1;
-        }
-        else
-        {
-            SetGlobalTransTarget(iClient);
-            FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TO_DIE");
-            PrintCenterText(iClient, sBuffer);
-
-            g_hTimer[iClient] = INVALID_HANDLE;
-            return Plugin_Stop; // Останавливаем таймер
-        }
-    }
-    else
+    if(!iClient)
     {
         g_hTimer[iClient] = INVALID_HANDLE;
         return Plugin_Stop; // Останавливаем таймер
     }
-        
+
+    if(g_iTimer[iClient] > 0)
+    {
+        FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TIMER", g_iTimer[iClient]);
+        PrintCenterText(iClient, sBuffer);
+        g_iTimer[iClient] -= 1;
+    }
+    else
+    {
+        SetGlobalTransTarget(iClient);
+        FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TO_DIE");
+        PrintCenterText(iClient, sBuffer);
+
+        g_hTimer[iClient] = INVALID_HANDLE;
+        return Plugin_Stop; // Останавливаем таймер
+    }
+    
     return Plugin_Continue; // Позволяем таймеру выполнятся дальше
 }
 
