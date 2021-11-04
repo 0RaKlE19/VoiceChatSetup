@@ -111,7 +111,7 @@ public void ePlayer_Death(Event event, const char[] name, bool dontBroadcast)
         }
     }
 
-    if(tt > 0 && ct > 0)
+    if(tt > 0 && ct > 0 && !IsFakeClient(iClient))
     {
         if(g_hTimer[iClient])
         {
