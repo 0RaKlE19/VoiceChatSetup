@@ -138,6 +138,7 @@ public Action Timer_Delay(Handle hTimer, int iClient)
         SetGlobalTransTarget(iClient);
         FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TO_DIE");
         PrintCenterText(iClient, sBuffer);
+        g_hTimer[iClient] = null;
         return Plugin_Stop;
     }
     return Plugin_Continue;
