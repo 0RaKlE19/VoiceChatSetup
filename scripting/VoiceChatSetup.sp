@@ -1,12 +1,12 @@
 #pragma semicolon 1
 #pragma newdecls required
-#include sdktools_gamerules
+#include <sdktools_gamerules>
+#include <sdktools>
 
-Handle  sv_deadtalk, sv_talk_after_dying_time;
+Handle  sv_deadtalk;
 Handle g_hTimer[MAXPLAYERS+1];
-static int g_iTimer[MAXPLAYERS+1], g_isv_talk_after_dying_time;
+static int g_iTimer[MAXPLAYERS+1];
 static char sBuffer[256];
-static bool g_bRoundEnd;
 
 public Plugin myinfo = 
 {
@@ -23,58 +23,35 @@ public void OnPluginStart()
     HookEvent("round_start", eRound_Start);
     HookEvent("player_death", ePlayer_Death);
 
-    sv_talk_after_dying_time = FindConVar("sv_talk_after_dying_time");
-    g_isv_talk_after_dying_time = GetConVarInt(sv_talk_after_dying_time);
-    CloseHandle(sv_talk_after_dying_time);
-
     sv_deadtalk = FindConVar("sv_deadtalk");
     int iFlags = GetConVarFlags(sv_deadtalk);
 	iFlags &= ~FCVAR_NOTIFY;
 	SetConVarFlags(sv_deadtalk, iFlags);
 
-    HookConVarChange(sv_deadtalk, OnDeadTalkChange);
-
     LoadTranslations("VoiceChatSetup.phrases");
 }
 
-public void OnDeadTalkChange(Handle ConVars, const char[] oldValue, const char[] newValue)
+public void OnMapStart()
 {
-    if(GetConVarInt(ConVars) == 1)
-    {
-        g_bRoundEnd = true;
-        if(!KillAllTimers())
-            PrintToServer("[DEBUG][VCS]: KillTimer ERROR!");
-        for (int i = 1; i <= MaxClients; i++)
-        {
-            if (IsClientInGame(i) && !IsFakeClient(i) && !IsPlayerAlive(i))
-            {
-                SetGlobalTransTarget(i);
-                FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TO_ALL");
-                PrintCenterText(i, sBuffer);
-            }
-        }
-    }
-    else
-        g_bRoundEnd = false;
+  AddFileToDownloadsTable("sound/welcome/welcomeclubbudy.mp3");
+  PrecacheSound("welcome/welcomeclubbudy.mp3");
+}
+
+public void OnClientPostAdminCheck(int iClient)
+{
+    if(IsClientInGame(iClient))
+        EmitSoundToClient(iClient, "welcome/welcomeclubbudy.mp3", _, SNDCHAN_STATIC, SNDLEVEL_NONE, _, 0.5);
 }
 
 public void OnPluginEnd()
 {
     int iFlags = GetConVarFlags(sv_deadtalk);
-	iFlags |= ~FCVAR_NOTIFY;
+	iFlags |= FCVAR_NOTIFY;
 	SetConVarFlags(sv_deadtalk, iFlags);
-}
-
-public void OnMapEnd()
-{
-    if(!KillAllTimers())
-        PrintToServer("[DEBUG][VCS]: KillTimer ERROR!");
 }
 
 public void OnClientDisconnect(int iClient)
 {
-    g_iTimer[iClient] = g_isv_talk_after_dying_time;
-    
     if(g_hTimer[iClient])
     {
         KillTimer(g_hTimer[iClient]);
@@ -85,53 +62,49 @@ public void OnClientDisconnect(int iClient)
 public void eRound_End(Event event, const char[] name, bool dontBroadcast)
 {
     SetConVarInt(sv_deadtalk, 1);
-    //VoiceToAll();
+    KillAllTimers();
 }
 
-public void eRound_Start(Event event, const char[] name, bool dontBroadcast)
-{
-    SetConVarInt(sv_deadtalk, 0);
-}
+public void eRound_Start(Event event, const char[] name, bool dontBroadcast){SetConVarInt(sv_deadtalk, 0);}
 
 public void ePlayer_Death(Event event, const char[] name, bool dontBroadcast)
 {
-    if(GameRules_GetProp("m_bWarmupPeriod") || g_bRoundEnd)
+    if(GameRules_GetProp("m_bWarmupPeriod") || GetConVarInt(sv_deadtalk) == 1)
         return;
     int iClient = GetClientOfUserId(GetEventInt(event, "userid"));
-    static int tt = 0, ct = 0;
+
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (IsClientInGame(i) && !IsFakeClient(i) && IsPlayerAlive(i))
+        if (IsClientInGame(i) && !IsFakeClient(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
         {
-            switch (GetClientTeam(i))
+            if(g_hTimer[iClient])
             {
-                case 2: tt++;
-                case 3: ct++;
+                KillTimer(g_hTimer[iClient]);
+                g_hTimer[iClient] = null;
             }
+            g_iTimer[iClient] = 5;
+            if(IsClientInGame(iClient) && !IsFakeClient(iClient))
+                g_hTimer[iClient] = CreateTimer(1.0, Timer_Delay, iClient, TIMER_REPEAT);
+            return;
         }
     }
-
-    if(tt > 0 && ct > 0 && !IsFakeClient(iClient))
-    {
-        if(g_hTimer[iClient])
-        {
-            KillTimer(g_hTimer[iClient]);
-            g_hTimer[iClient] = null;
-        }
-
-        g_hTimer[iClient] = CreateTimer(1.0, Timer_Delay, iClient, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-    }
-    else
-        SetConVarInt(sv_deadtalk, 1);
+    SetConVarInt(sv_deadtalk, 1);
+    KillAllTimers();
 }
 
 public Action Timer_Delay(Handle hTimer, int iClient)
 {
+    if(!IsClientInGame(iClient) || GetConVarInt(sv_deadtalk) == 1)
+    {
+        g_hTimer[iClient] = null;
+        return Plugin_Stop;
+    }
+
     if(g_iTimer[iClient] > 0)
     {
         FormatEx(sBuffer, sizeof(sBuffer), "%t", "VOICE_TIMER", g_iTimer[iClient]);
         PrintCenterText(iClient, sBuffer);
-        g_iTimer[iClient]--;
+        g_iTimer[iClient] = g_iTimer[iClient] - 1;
     }
     else
     {
@@ -143,13 +116,14 @@ public Action Timer_Delay(Handle hTimer, int iClient)
     }
     return Plugin_Continue;
 }
-/*
-void VoiceToAll()
+
+void KillAllTimers()
 {
-    if(!KillAllTimers())
-        PrintToServer("[DEBUG][VCS]: KillTimer ERROR!");
-    for (int i = 1; i <= MaxClients; i++)
+    for(int i = 1; i <= MaxClients; i++)
     {
+        if(g_hTimer[i])
+            KillTimer(g_hTimer[i]);
+        g_hTimer[i] = null;
         if (IsClientInGame(i) && !IsFakeClient(i) && !IsPlayerAlive(i))
         {
             SetGlobalTransTarget(i);
@@ -157,18 +131,4 @@ void VoiceToAll()
             PrintCenterText(i, sBuffer);
         }
     }
-}
-*/
-bool KillAllTimers()
-{
-    for(int i = 1; i <= MaxClients; i++)
-    {
-        g_iTimer[i] = g_isv_talk_after_dying_time;
-        if(g_hTimer[i])
-        {
-            KillTimer(g_hTimer[i]);
-            g_hTimer[i] = null;
-        }
-    }
-    return true;
 }
